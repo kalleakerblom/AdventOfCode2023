@@ -13,7 +13,6 @@ impl Reveal {
         let mut red = 0;
         let mut green = 0;
         let mut blue = 0;
-
         for part in s.split(", ") {
             let (count, color) = part.split_once(' ').unwrap();
             match color {
@@ -37,21 +36,22 @@ impl Game {
         let reveals: Vec<_> = rest.split("; ").map(Reveal::from_str).collect();
         Game { reveals }
     }
+
     fn is_valid(&self) -> bool {
         self.reveals
             .iter()
             .all(|rev| rev.red <= MAX_RED && rev.green <= MAX_GREEN && rev.blue <= MAX_BLUE)
     }
+
     fn power(&self) -> usize {
-        let mut max_red = 0;
-        let mut max_green = 0;
-        let mut max_blue = 0;
-        for rev in &self.reveals {
-            max_red = max_red.max(rev.red);
-            max_green = max_green.max(rev.green);
-            max_blue = max_blue.max(rev.blue)
-        }
-        max_red * max_green * max_blue
+        let max = self.reveals.iter().fold((0, 0, 0), |max, rev| {
+            (
+                max.0.max(rev.red),
+                max.1.max(rev.green),
+                max.2.max(rev.blue),
+            )
+        });
+        max.0 * max.1 * max.2
     }
 }
 
@@ -61,7 +61,7 @@ pub fn part_1(input: &str) -> usize {
         .map(Game::from_str)
         .enumerate()
         .filter_map(|(i, game)| game.is_valid().then_some(i + 1))
-        .sum::<usize>()
+        .sum()
 }
 
 pub fn part_2(input: &str) -> usize {
