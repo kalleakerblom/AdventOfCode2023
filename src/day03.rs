@@ -32,6 +32,17 @@ fn parse_line(
     let mut digits = String::new();
     let mut digits_start = 0;
     let mut digits_end = 0;
+    let mut close_digits = |to_close: &mut String, x_start, x_end| {
+        let n: u32 = to_close.parse().unwrap();
+        engine_numbers.push(EngineNumber {
+            x_start,
+            x_end,
+            y: line_nr,
+            n,
+        });
+        to_close.clear();
+    };
+
     for (x, ch) in line.chars().enumerate() {
         if ch.is_ascii_digit() {
             if digits.is_empty() {
@@ -48,28 +59,15 @@ fn parse_line(
             symbols.push(Symbol { x, y: line_nr, ch });
         }
         if !digits.is_empty() {
-            let n: u32 = digits.parse().unwrap();
-            engine_numbers.push(EngineNumber {
-                x_start: digits_start,
-                x_end: digits_end,
-                y: line_nr,
-                n,
-            });
-            digits.clear();
+            close_digits(&mut digits, digits_start, digits_end);
         }
     }
     if !digits.is_empty() {
-        let n: u32 = digits.parse().unwrap();
-        engine_numbers.push(EngineNumber {
-            x_start: digits_start,
-            x_end: digits_end,
-            y: line_nr,
-            n,
-        });
+        close_digits(&mut digits, digits_start, digits_end);
     }
 }
 
-fn parse(input: &str) -> (Vec<EngineNumber>, Vec<Symbol>) {
+fn parse_numbers_symbols(input: &str) -> (Vec<EngineNumber>, Vec<Symbol>) {
     let mut engine_numbers = Vec::new();
     let mut symbols = Vec::new();
     for (line_nr, line) in input.lines().enumerate() {
@@ -87,7 +85,7 @@ fn sum_part_numbers(engine_numbers: &[EngineNumber], sym_map: &[Symbol]) -> u32 
 }
 
 pub fn part_1(input: &str) -> u32 {
-    let (engine_numbers, symbols) = parse(input);
+    let (engine_numbers, symbols) = parse_numbers_symbols(input);
     sum_part_numbers(&engine_numbers, &symbols)
 }
 
@@ -116,11 +114,7 @@ fn sum_gear_ratios(engine_numbers: &[EngineNumber], symbols: &[Symbol]) -> u32 {
 }
 
 pub fn part_2(input: &str) -> u32 {
-    let mut engine_numbers = Vec::new();
-    let mut symbols = Vec::new();
-    for (line_nr, line) in input.lines().enumerate() {
-        parse_line(line, line_nr, &mut engine_numbers, &mut symbols);
-    }
+    let (engine_numbers, symbols) = parse_numbers_symbols(input);
     sum_gear_ratios(&engine_numbers, &symbols)
 }
 
