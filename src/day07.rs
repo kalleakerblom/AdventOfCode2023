@@ -14,6 +14,26 @@ enum HandType {
     FiveOfAKind,
 }
 
+impl HandType {
+    fn from_card_counts(
+        two_ofs: usize,
+        three_ofs: usize,
+        four_ofs: usize,
+        five_ofs: usize,
+    ) -> Self {
+        match (two_ofs, three_ofs, four_ofs, five_ofs) {
+            (0, 0, 0, 1) => HandType::FiveOfAKind,
+            (0, 0, 1, 0) => HandType::FourOfAKind,
+            (1, 1, 0, 0) => HandType::FullHouse,
+            (0, 1, 0, 0) => HandType::ThreeOfAKind,
+            (2, 0, 0, 0) => HandType::TwoPair,
+            (1, 0, 0, 0) => HandType::OnePair,
+            (0, 0, 0, 0) => HandType::HighCard,
+            _ => panic!(),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct Hand {
     hand_type: HandType,
@@ -35,16 +55,7 @@ impl Hand {
         let three_ofs = char_count.values().filter(|count| **count == 3).count();
         let two_ofs = char_count.values().filter(|count| **count == 2).count();
 
-        let hand_type = match (two_ofs, three_ofs, four_ofs, five_ofs) {
-            (0, 0, 0, 1) => HandType::FiveOfAKind,
-            (0, 0, 1, 0) => HandType::FourOfAKind,
-            (1, 1, 0, 0) => HandType::FullHouse,
-            (0, 1, 0, 0) => HandType::ThreeOfAKind,
-            (2, 0, 0, 0) => HandType::TwoPair,
-            (1, 0, 0, 0) => HandType::OnePair,
-            (0, 0, 0, 0) => HandType::HighCard,
-            _ => panic!(),
-        };
+        let hand_type = HandType::from_card_counts(two_ofs, three_ofs, four_ofs, five_ofs);
         Self { hand_type, cards }
     }
 }
@@ -96,34 +107,26 @@ impl Hand {
             .iter()
             .filter(|&(&ch, &count)| ch != 'J' && count == 2)
             .count();
+        let one_ofs = char_count
+            .iter()
+            .filter(|&(&ch, &count)| ch != 'J' && count == 1)
+            .count();
         let jokers = char_count.get(&'J').cloned().unwrap_or(0);
 
-        let (two_ofs, three_ofs, four_ofs, five_ofs) = match (two_ofs, three_ofs, four_ofs, jokers)
-        {
-            (0, 0, 1, 1) => (0, 0, 0, 1),
-            (0, 1, 0, 1) => (0, 0, 1, 0),
-            (0, 1, 0, 2) => (0, 0, 0, 1),
-            (1, 0, 0, 1) => (0, 1, 0, 0),
-            (1, 0, 0, 2) => (0, 0, 1, 0),
-            (1, 0, 0, 3) => (0, 0, 0, 1),
-            (2, 0, 0, 1) => (1, 1, 0, 0),
-            (0, 0, 0, 1) => (1, 0, 0, 0),
-            (0, 0, 0, 2) => (0, 1, 0, 0),
-            (0, 0, 0, 3) => (0, 0, 1, 0),
-            (0, 0, 0, 4) => (0, 0, 0, 1),
-            (0, 0, 0, 5) => (0, 0, 0, 1),
-            _ => (two_ofs, three_ofs, four_ofs, five_ofs),
-        };
-        let hand_type = match (two_ofs, three_ofs, four_ofs, five_ofs) {
-            (0, 0, 0, 1) => HandType::FiveOfAKind,
-            (0, 0, 1, 0) => HandType::FourOfAKind,
-            (1, 1, 0, 0) => HandType::FullHouse,
-            (0, 1, 0, 0) => HandType::ThreeOfAKind,
-            (2, 0, 0, 0) => HandType::TwoPair,
-            (1, 0, 0, 0) => HandType::OnePair,
-            (0, 0, 0, 0) => HandType::HighCard,
-            _ => panic!(),
-        };
+        if jokers == 5 {
+            return Self {
+                hand_type: HandType::FiveOfAKind,
+                cards,
+            };
+        }
+
+        let mut x_ofs = [five_ofs, four_ofs, three_ofs, two_ofs, one_ofs];
+        if jokers != 0 {
+            let to_raise = x_ofs.iter().skip(1).position(|count| *count != 0).unwrap() + 1;
+            x_ofs[to_raise] -= 1;
+            x_ofs[to_raise - jokers as usize] += 1;
+        }
+        let hand_type = HandType::from_card_counts(x_ofs[3], x_ofs[2], x_ofs[1], x_ofs[0]);
         Self { hand_type, cards }
     }
 }
