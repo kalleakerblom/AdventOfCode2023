@@ -1,20 +1,18 @@
-fn predict(vals: &[i32]) -> i32 {
-    if vals.iter().all(|v| *v == 0) {
-        return 0;
-    }
-    let diffs: Vec<_> = vals.windows(2).map(|w| w[1] - w[0]).collect();
-    let predicted_diff = predict(&diffs);
-    let predicted = vals.last().unwrap() + predicted_diff;
-    predicted
+#[derive(Clone, Copy)]
+enum PredictDirection {
+    Forward,
+    Backward,
 }
-
-fn predict_back(vals: &[i32]) -> i32 {
+fn predict(vals: &[i32], predict_dir: PredictDirection) -> i32 {
     if vals.iter().all(|v| *v == 0) {
         return 0;
     }
     let diffs: Vec<_> = vals.windows(2).map(|w| w[1] - w[0]).collect();
-    let predicted_diff = predict_back(&diffs);
-    let predicted = vals.first().unwrap() - predicted_diff;
+    let predicted_diff = predict(&diffs, predict_dir);
+    let predicted = match predict_dir {
+        PredictDirection::Forward => vals.last().unwrap() + predicted_diff,
+        PredictDirection::Backward => vals.first().unwrap() - predicted_diff,
+    };
     predicted
 }
 
@@ -23,7 +21,7 @@ pub fn part_1(input: &str) -> i32 {
         .lines()
         .map(|l| {
             let vals: Vec<_> = l.split_whitespace().map(|n| n.parse().unwrap()).collect();
-            predict(&vals)
+            predict(&vals, PredictDirection::Forward)
         })
         .sum()
 }
@@ -33,7 +31,7 @@ pub fn part_2(input: &str) -> i32 {
         .lines()
         .map(|l| {
             let vals: Vec<_> = l.split_whitespace().map(|n| n.parse().unwrap()).collect();
-            predict_back(&vals)
+            predict(&vals, PredictDirection::Backward)
         })
         .sum()
 }
