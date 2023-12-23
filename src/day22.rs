@@ -10,20 +10,17 @@ struct Block {
 }
 
 impl Block {
-    fn from_str(s: &str) -> Self {
+    fn from_str(line: &str) -> Self {
         // 1,0,1~1,2,1
-        let (start, end) = s.split_once('~').unwrap();
-        let (xs, ys, zs) = start
-            .split(',')
-            .map(|n| n.parse().unwrap())
-            .collect_tuple()
-            .unwrap();
-        let (xe, ye, ze) = end
-            .split(',')
-            .map(|n| n.parse().unwrap())
-            .collect_tuple()
-            .unwrap();
-
+        let (start, end) = line.split_once('~').unwrap();
+        let split_tuple = |s: &str| {
+            s.split(',')
+                .map(|n| n.parse().unwrap())
+                .collect_tuple()
+                .unwrap()
+        };
+        let (xs, ys, zs) = split_tuple(start);
+        let (xe, ye, ze) = split_tuple(end);
         Self {
             x_range: (xs, xe),
             y_range: (ys, ye),
@@ -96,12 +93,9 @@ fn calculate_falls(
 ) -> usize {
     let mut fallen = HashSet::new();
     let mut to_fall: VecDeque<usize> = [i].into();
-    while let Some(fall) = to_fall.pop_front() {
-        fallen.insert(fall);
-        if !supports_blocks.contains_key(&fall) {
-            continue;
-        }
-        for affected in &supports_blocks[&fall] {
+    while let Some(falling) = to_fall.pop_front() {
+        fallen.insert(falling);
+        for affected in supports_blocks.get(&falling).unwrap_or(&vec![]) {
             if supported_by[affected]
                 .iter()
                 .all(|sup| fallen.contains(sup))
@@ -123,11 +117,9 @@ pub fn part_2(input: &str) -> usize {
             supports_blocks.entry(*supporter).or_default().push(*k);
         }
     }
-    let mut sum = 0;
-    for i in 0..n_blocks {
-        sum += calculate_falls(i, &supported_by, &supports_blocks);
-    }
-    sum
+    (0..n_blocks)
+        .map(|i| calculate_falls(i, &supported_by, &supports_blocks))
+        .sum()
 }
 
 #[cfg(test)]
@@ -152,6 +144,6 @@ mod tests {
     #[test]
     fn day22_part2() {
         let input = fs::read_to_string("input/day22").unwrap();
-        assert_eq!(part_2(&input), 0);
+        assert_eq!(part_2(&input), 60963);
     }
 }
