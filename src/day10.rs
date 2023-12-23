@@ -63,31 +63,61 @@ pub fn part_1(input: &str) -> usize {
     *travel_the_loop(start, &map).values().max().unwrap()
 }
 
-fn count_unenclosed_tiles(map: &Map, loop_tiles: &HashMap<Pos, usize>) -> usize {
-    let mut count = 0;
-    for tile in map.keys() {
-        if loop_tiles.contains_key(tile) {
-            continue;
+fn is_inside(moat: &[Pos], o: Pos) -> bool {
+    let mut winding = 0;
+    let len = moat.len();
+    for i in 0..len {
+        let p = moat[i];
+        let q = moat[(i + 1) % len];
+        if p == o {
+            return false;
         }
-        let mut intersections = 0;
-        for x in -1..tile.0 {
-            let ray_pos = (x, tile.1);
-            if loop_tiles.contains_key(&ray_pos) && matches!(map[&ray_pos], '|' | 'L' | 'J' | 'S') {
-                intersections += 1;
-            }
-        }
-        if intersections % 2 != 0 {
-            count += 1;
+        let delta = (p.0 - o.0) * (q.1 - o.1) - (p.1 - o.1) * (q.0 - o.0);
+        if p.0 <= o.0 && o.0 < q.0 && delta > 0 {
+            winding += 1;
+        } else if q.0 <= o.0 && o.0 < p.0 && delta < 0 {
+            winding -= 1;
         }
     }
-    count
+    winding != 0
+}
+
+fn count_enclosed_tiles(map: &Map, loop_tiles: &[Pos]) -> usize {
+    map.keys().filter(|&&p| is_inside(loop_tiles, p)).count()
+}
+
+fn travel_the_loop_part2(start: Pos, map: &Map) -> Vec<Pos> {
+    let mut visited = vec![];
+    visited.push(start);
+    let start_neighbors = [
+        (start.0 + 1, start.1),
+        (start.0 - 1, start.1),
+        (start.0, start.1 + 1),
+        (start.0, start.1 - 1),
+    ];
+    let mut pos = start_neighbors
+        .iter()
+        .find(|&&sn| map.contains_key(&sn) && get_neighbors(sn, map).contains(&start))
+        .cloned()
+        .unwrap();
+    let mut prev = start;
+    while pos != start {
+        visited.push(pos);
+        let next = get_neighbors(pos, map)
+            .iter()
+            .find(|&&nei| nei != prev)
+            .cloned()
+            .unwrap();
+        prev = pos;
+        pos = next;
+    }
+    visited
 }
 
 pub fn part_2(input: &str) -> usize {
     let (map, start): (Map, Pos) = parse_map_n_start(input);
-    let loop_tiles = travel_the_loop(start, &map);
-    let count = count_unenclosed_tiles(&map, &loop_tiles);
-    count
+    let loop_tiles = travel_the_loop_part2(start, &map);
+    count_enclosed_tiles(&map, &loop_tiles)
 }
 
 #[cfg(test)]
