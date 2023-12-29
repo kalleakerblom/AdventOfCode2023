@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-
 use itertools::Itertools;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 type Range = (i32, i32);
 struct Block {
@@ -34,26 +33,19 @@ fn place_blocks_n_map_supports(mut blocks: Vec<Block>) -> HashMap<usize, Vec<usi
     let mut supported_by = HashMap::new();
     blocks.sort_by_key(|b| b.z_range.0);
     for (block_id, b) in blocks.iter().enumerate() {
-        let xy_range: Vec<_> = if b.x_range.0 != b.x_range.1 {
-            (b.x_range.0..=b.x_range.1)
-                .map(move |x| (x, b.y_range.0))
-                .collect_vec()
-        } else {
-            (b.y_range.0..=b.y_range.1)
-                .map(move |y| (b.x_range.0, y))
-                .collect_vec()
-        };
+        let xy_range = (b.x_range.0..=b.x_range.1)
+            .flat_map(|x| (b.y_range.0..=b.y_range.1).map(move |y| (x, y)));
         let z_max = xy_range
-            .iter()
-            .map(|xy| max_height.get(xy).unwrap_or(&(0, 0)).0)
+            .clone()
+            .map(|xy| max_height.get(&xy).unwrap_or(&(0, 0)).0)
             .max()
             .unwrap();
         // find the supports
         let mut supports = xy_range
-            .iter()
+            .clone()
             .filter_map(|xy| {
                 max_height
-                    .get(xy)
+                    .get(&xy)
                     .filter(|get| get.0 == z_max)
                     .map(|get| get.1)
             })
@@ -63,8 +55,8 @@ fn place_blocks_n_map_supports(mut blocks: Vec<Block>) -> HashMap<usize, Vec<usi
         supported_by.insert(block_id, supports);
         // fill in new max heights
         let new_height = z_max + b.z_range.1 - b.z_range.0 + 1;
-        for xy in &xy_range {
-            max_height.insert(*xy, (new_height, block_id));
+        for xy in xy_range {
+            max_height.insert(xy, (new_height, block_id));
         }
     }
     supported_by
