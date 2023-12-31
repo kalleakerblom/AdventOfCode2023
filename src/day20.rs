@@ -23,14 +23,7 @@ struct Module {
 }
 
 impl Module {
-    fn react(
-        &mut self,
-        own_id: Id,
-        source: Id,
-        pulse: Pulse,
-        low_cnt: &mut usize,
-        high_cnt: &mut usize,
-    ) -> Vec<(Id, Id, Pulse)> {
+    fn react(&mut self, source: Id, pulse: Pulse) -> Option<Pulse> {
         let out = match (&mut self.type_, pulse) {
             (Type::FlipFlop(mem), Pulse::Low) => {
                 *mem = match mem {
@@ -40,7 +33,7 @@ impl Module {
                 *mem
             }
             (Type::FlipFlop(_), Pulse::High) => {
-                return vec![];
+                return None;
             }
             (Type::Conj(mem), _) => {
                 let m = mem.iter_mut().find(|m| m.0 == source).unwrap();
@@ -53,15 +46,7 @@ impl Module {
             }
             (Type::Broadcaster, _) => Pulse::Low,
         };
-        match out {
-            Pulse::Low => *low_cnt += self.destinations.len(),
-            Pulse::High => *high_cnt += self.destinations.len(),
-        }
-        self.destinations
-            .iter()
-            .filter(|d| **d != 0)
-            .map(|d| (own_id, *d, out))
-            .collect()
+        Some(out)
     }
 }
 
@@ -125,11 +110,22 @@ fn parse_modules(s: &str) -> Vec<Module> {
 fn button_press(modules: &mut [Module]) -> (usize, usize) {
     let mut low_cnt = 1;
     let mut high_cnt = 0;
-    let mut events: VecDeque<_> = modules[0]
-        .react(0, 0, Pulse::Low, &mut low_cnt, &mut high_cnt)
-        .into();
+    let mut events: VecDeque<_> = [(0, 0, Pulse::Low)].into();
     while let Some((source, dest, pulse)) = events.pop_front() {
-        events.extend(modules[dest].react(dest, source, pulse, &mut low_cnt, &mut high_cnt));
+        let module = &mut modules[dest];
+        if let Some(out) = module.react(source, pulse) {
+            match out {
+                Pulse::Low => low_cnt += module.destinations.len(),
+                Pulse::High => high_cnt += module.destinations.len(),
+            }
+            events.extend(
+                module
+                    .destinations
+                    .iter()
+                    .filter(|d| **d != 0)
+                    .map(|d| (dest, *d, out)),
+            );
+        }
     }
     (low_cnt, high_cnt)
 }
@@ -147,13 +143,18 @@ pub fn part_1(input: &str) -> usize {
 }
 
 fn button_press_part2(modules: &mut [Module], press: usize) -> bool {
-    let mut low_cnt = 1;
-    let mut high_cnt = 0;
-    let mut events: VecDeque<_> = modules[0]
-        .react(0, 0, Pulse::Low, &mut low_cnt, &mut high_cnt)
-        .into();
+    let mut events: VecDeque<_> = [(0, 0, Pulse::Low)].into();
     while let Some((source, dest, pulse)) = events.pop_front() {
-        events.extend(modules[dest].react(dest, source, pulse, &mut low_cnt, &mut high_cnt));
+        let module = &mut modules[dest];
+        if let Some(out) = module.react(source, pulse) {
+            events.extend(
+                module
+                    .destinations
+                    .iter()
+                    .filter(|d| **d != 0)
+                    .map(|d| (dest, *d, out)),
+            );
+        }
         let Type::Conj(mem) = &modules[4].type_ else{
             unreachable!()
         };
