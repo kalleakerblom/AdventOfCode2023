@@ -43,7 +43,7 @@ fn parse_workflows(s: &str) -> HashMap<String, Vec<(Rule, String)>> {
     //px{a<2006:qkq,m>2090:A,rfg}
     let mut res = HashMap::new();
     for l in s.lines() {
-        let (key, rules) = l.split_once("{").unwrap();
+        let (key, rules) = l.split_once('{').unwrap();
         let rules = rules
             .trim_end_matches('}')
             .split(',')
@@ -124,8 +124,9 @@ pub fn part_1(input: &str) -> i64 {
     rate_tools(tools, workflows)
 }
 ///////////////////// Part 2
+type MatchingAndRemainder = (Option<(i64, i64)>, Option<(i64, i64)>);
 impl Op {
-    fn split_range(&self, (min, max): (i64, i64)) -> (Option<(i64, i64)>, Option<(i64, i64)>) {
+    fn split_range(&self, (min, max): (i64, i64)) -> MatchingAndRemainder {
         match self {
             Op::Less(split) if *split <= min => (None, Some((min, max))),
             Op::Less(split) if *split > max => (Some((min, max)), None),
@@ -158,29 +159,29 @@ impl ToolRange {
             Rule::X(op) => {
                 let (matching, remainder) = op.split_range(self.x);
                 (
-                    Some(make_range(matching, None, None, None)),
-                    Some(make_range(remainder, None, None, None)),
+                    matching.map(|xr| make_range(Some(xr), None, None, None)),
+                    remainder.map(|xr| make_range(Some(xr), None, None, None)),
                 )
             }
             Rule::M(op) => {
                 let (matching, remainder) = op.split_range(self.m);
                 (
-                    Some(make_range(None, matching, None, None)),
-                    Some(make_range(None, remainder, None, None)),
+                    matching.map(|mr| make_range(None, Some(mr), None, None)),
+                    remainder.map(|mr| make_range(None, Some(mr), None, None)),
                 )
             }
             Rule::A(op) => {
                 let (matching, remainder) = op.split_range(self.a);
                 (
-                    Some(make_range(None, None, matching, None)),
-                    Some(make_range(None, None, remainder, None)),
+                    matching.map(|ar| make_range(None, None, Some(ar), None)),
+                    remainder.map(|ar| make_range(None, None, Some(ar), None)),
                 )
             }
             Rule::S(op) => {
                 let (matching, remainder) = op.split_range(self.s);
                 (
-                    Some(make_range(None, None, None, matching)),
-                    Some(make_range(None, None, None, remainder)),
+                    matching.map(|sr| make_range(None, None, None, Some(sr))),
+                    remainder.map(|sr| make_range(None, None, None, Some(sr))),
                 )
             }
             Rule::Else => (Some(self.clone()), None),
