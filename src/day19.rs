@@ -39,7 +39,7 @@ impl Rule {
     }
 }
 
-fn parse_workflows(s: &str) -> HashMap<String, Vec<(Rule, String)>> {
+fn parse_workflows(s: &str) -> HashMap<&str, Vec<(Rule, &str)>> {
     //px{a<2006:qkq,m>2090:A,rfg}
     let mut res = HashMap::new();
     for l in s.lines() {
@@ -49,9 +49,9 @@ fn parse_workflows(s: &str) -> HashMap<String, Vec<(Rule, String)>> {
             .split(',')
             .map(|split| {
                 if let Some((op, target)) = split.split_once(':') {
-                    (Rule::from_str(op), target.to_owned())
+                    (Rule::from_str(op), target)
                 } else {
-                    (Rule::Else, split.to_owned())
+                    (Rule::Else, split)
                 }
             })
             .collect();
@@ -98,7 +98,7 @@ fn parse_tools(s: &str) -> Vec<Tool> {
     s.lines().map(Tool::from_str).collect()
 }
 
-fn rate_tool(t: &Tool, flow: &HashMap<String, Vec<(Rule, String)>>) -> i64 {
+fn rate_tool(t: &Tool, flow: &HashMap<&str, Vec<(Rule, &str)>>) -> i64 {
     let mut pos = "in";
     loop {
         if pos == "A" {
@@ -113,7 +113,7 @@ fn rate_tool(t: &Tool, flow: &HashMap<String, Vec<(Rule, String)>>) -> i64 {
     }
 }
 
-fn rate_tools(tools: Vec<Tool>, workflows: HashMap<String, Vec<(Rule, String)>>) -> i64 {
+fn rate_tools(tools: Vec<Tool>, workflows: HashMap<&str, Vec<(Rule, &str)>>) -> i64 {
     tools.iter().map(|t| rate_tool(t, &workflows)).sum()
 }
 
@@ -146,43 +146,25 @@ struct ToolRange {
     s: (i64, i64),
 }
 
+#[rustfmt::skip]
 impl ToolRange {
     fn apply_rule(&self, rule: &Rule) -> (Option<ToolRange>, Option<ToolRange>) {
-        let make_range =
-            |new_x: Option<_>, new_m: Option<_>, new_a: Option<_>, new_s: Option<_>| ToolRange {
-                x: new_x.unwrap_or(self.x),
-                m: new_m.unwrap_or(self.m),
-                a: new_a.unwrap_or(self.a),
-                s: new_s.unwrap_or(self.s),
-            };
         match rule {
             Rule::X(op) => {
                 let (matching, remainder) = op.split_range(self.x);
-                (
-                    matching.map(|xr| make_range(Some(xr), None, None, None)),
-                    remainder.map(|xr| make_range(Some(xr), None, None, None)),
-                )
+                (matching.map(|xr| Self {x: xr, ..self.clone()}), remainder.map(|xr| Self {x: xr, ..self.clone()}),)
             }
             Rule::M(op) => {
                 let (matching, remainder) = op.split_range(self.m);
-                (
-                    matching.map(|mr| make_range(None, Some(mr), None, None)),
-                    remainder.map(|mr| make_range(None, Some(mr), None, None)),
-                )
+                (matching.map(|mr| Self {m: mr, ..self.clone()}), remainder.map(|mr| Self {m: mr, ..self.clone()}),)
             }
             Rule::A(op) => {
                 let (matching, remainder) = op.split_range(self.a);
-                (
-                    matching.map(|ar| make_range(None, None, Some(ar), None)),
-                    remainder.map(|ar| make_range(None, None, Some(ar), None)),
-                )
+                (matching.map(|ar| Self {a: ar, ..self.clone()}), remainder.map(|ar| Self {a: ar, ..self.clone()}),)
             }
             Rule::S(op) => {
                 let (matching, remainder) = op.split_range(self.s);
-                (
-                    matching.map(|sr| make_range(None, None, None, Some(sr))),
-                    remainder.map(|sr| make_range(None, None, None, Some(sr))),
-                )
+                (matching.map(|sr| Self {s: sr, ..self.clone()}), remainder.map(|sr| Self {s: sr, ..self.clone()}),)
             }
             Rule::Else => (Some(self.clone()), None),
         }
@@ -192,7 +174,7 @@ impl ToolRange {
 fn count_valid_ranges(
     mut tr: ToolRange,
     pos: &str,
-    flow: &HashMap<String, Vec<(Rule, String)>>,
+    flow: &HashMap<&str, Vec<(Rule, &str)>>,
 ) -> i64 {
     if pos == "A" {
         let size = |(s, e)| 1 + e - s;
