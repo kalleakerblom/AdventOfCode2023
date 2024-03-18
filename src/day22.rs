@@ -9,22 +9,16 @@ struct Block {
 }
 
 impl Block {
-    fn from_str(line: &str) -> Self {
+    fn from_str(line: &str) -> Option<Self> {
         // 1,0,1~1,2,1
-        let (start, end) = line.split_once('~').unwrap();
-        let split_tuple = |s: &str| {
-            s.split(',')
-                .map(|n| n.parse().unwrap())
-                .collect_tuple()
-                .unwrap()
-        };
-        let (xs, ys, zs) = split_tuple(start);
-        let (xe, ye, ze) = split_tuple(end);
-        Self {
-            x_range: (xs, xe),
-            y_range: (ys, ye),
-            z_range: (zs, ze),
-        }
+        let (start, end) = line.split_once('~')?;
+        let mut start_it = start.split(',').map_while(|n| n.parse().ok());
+        let mut end_it = end.split(',').map_while(|n| n.parse().ok());
+        Some(Self {
+            x_range: (start_it.next()?, end_it.next()?),
+            y_range: (start_it.next()?, end_it.next()?),
+            z_range: (start_it.next()?, end_it.next()?),
+        })
     }
 }
 
@@ -63,8 +57,8 @@ fn place_blocks_n_map_supports(mut blocks: Vec<Block>) -> HashMap<usize, Vec<usi
 }
 
 pub fn part_1(input: &str) -> usize {
-    let blocks = input.lines().map(Block::from_str).collect_vec();
-    let supported_by = place_blocks_n_map_supports(blocks);
+    let blocks: Option<Vec<Block>> = input.lines().map(Block::from_str).collect();
+    let supported_by = place_blocks_n_map_supports(blocks.unwrap());
     let single_supporters: HashSet<usize> = supported_by
         .values()
         .filter_map(|supports| {
@@ -100,7 +94,8 @@ fn calculate_falls(
 }
 
 pub fn part_2(input: &str) -> usize {
-    let blocks = input.lines().map(Block::from_str).collect_vec();
+    let blocks: Option<Vec<_>> = input.lines().map(Block::from_str).collect();
+    let blocks = blocks.unwrap();
     let n_blocks = blocks.len();
     let supported_by = place_blocks_n_map_supports(blocks);
     let mut supports_blocks: HashMap<usize, Vec<usize>> = HashMap::new();
